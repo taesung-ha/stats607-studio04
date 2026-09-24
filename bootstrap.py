@@ -1,5 +1,4 @@
 import numpy as np
-
 def bootstrap_sample(data, compute_stat, n_bootstrap=1000):
     """
     Generate the bootstrap distribution of a statistic
@@ -33,6 +32,29 @@ def bootstrap_sample(data, compute_stat, n_bootstrap=1000):
     TBA
 
     """
+    if not callable(compute_stat):
+        raise TypeError("compute_stat must be callable")
+    
+    if not isinstance(n_bootstrap, (int, np.integer)) or n_bootstrap < 1:
+        raise ValueError("n_bootstrap must be a positive integer")
+    
+    data = np.asarray(data)
+    
+    if data.size == 0:
+        raise ValueError("data must not be empty")
+    
+    if data.ndim != 2 or data.shape[1] != 2:
+        raise ValueError("data must have shape (n, 2)")
+    
+    n = data.shape[0]
+    bootstrap_stats = np.empty(n_bootstrap, dtype=float)
+
+    for i in range(n_bootstrap):
+        indices = np.random.randint(0, n, size=n)
+        resampled_data = data[indices]
+        bootstrap_stats[i] = compute_stat(resampled_data)
+        
+    return bootstrap_stats
 
 def bootstrap_ci(bootstrap_stats, alpha=0.05):
     """
