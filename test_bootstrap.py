@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import beta, kstest
 import pytest
 
 from bootstrap import bootstrap_sample, bootstrap_ci, r_squared
@@ -143,3 +144,21 @@ def test_r_squared_is_one_for_perfect_linear_data():
 def test_r_squared_rejects_invalid_data_shape(data):
     with pytest.raises(ValueError):
         r_squared(data)
+        
+def test_r_squared_matches_null_theoretical_distribution():
+    rng = np.random.default_rng(2026)
+
+    n = 30
+    n_simulations = 3000
+    r2_values = np.empty(n_simulations)
+
+    for i in range(n_simulations):
+        x = rng.normal(size=n)
+        y = rng.normal(size=n)  
+        data = np.column_stack((x, y))
+        r2_values[i] = r_squared(data)
+
+    theoretical_r2 = beta(a=0.5, b=(n - 2) / 2)
+    _, p_value = kstest(r2_values, theoretical_r2.cdf)
+
+    assert p_value > 0.01
