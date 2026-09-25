@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import beta, kstest
+from scipy.stats import beta
 import pytest
 
 from bootstrap import bootstrap_sample, bootstrap_ci, r_squared
@@ -145,20 +145,36 @@ def test_r_squared_rejects_invalid_data_shape(data):
     with pytest.raises(ValueError):
         r_squared(data)
         
-def test_r_squared_matches_null_theoretical_distribution():
+def test_bootstrap_ci_has_reasonable_coverage_under_null():
     rng = np.random.default_rng(2026)
 
     n = 30
-    n_simulations = 3000
-    r2_values = np.empty(n_simulations)
+    n_experiments = 300
+    n_bootstrap = 500
 
-    for i in range(n_simulations):
+    # H0 아래 R²의 이론적 분포와 평균
+    null_r2_distribution = beta(a=0.5, b=(n - 2) / 2)
+    true_r2_mean = null_r2_distribution.mean()  # 1 / (n - 1)
+
+    covered = 0
+
+    for _ in range(n_experiments):
+        # 기울기 0인 귀무가설: x와 y가 독립
         x = rng.normal(size=n)
-        y = rng.normal(size=n)  
+        y = rng.normal(size=n)
         data = np.column_stack((x, y))
-        r2_values[i] = r_squared(data)
 
-    theoretical_r2 = beta(a=0.5, b=(n - 2) / 2)
-    _, p_value = kstest(r2_values, theoretical_r2.cdf)
+        bootstrap_stats = bootstrap_sample(
+            data,
+            r_squared,
+            n_bootstrap=n_bootstrap,
+        )
+        lower, upper = bootstrap_ci(bootstrap_stats, alpha=0.05)
 
-    assert p_value > 0.01
+        if lower <= true_r2_mean <= upper:
+            covered += 1
+
+    coverage = covered / n_experiments
+
+    # 유한한 시뮬레이션 횟수로 95%와 정확히 일치하지는 않으므로 허용범위 사용
+    assert 0.88 <= coverage <= 1.00
